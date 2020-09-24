@@ -1,4 +1,4 @@
-import CapabilityTransfer from 0x1cf0e2f2f715450
+import CapabilityTransfer from 0x1cf0e2f2f715450 
 transaction {
     let signer: AuthAccount
     let linkPath: Path
@@ -10,7 +10,7 @@ transaction {
             .getCapability(self.linkPath)!
             .borrow<&{CapabilityTransfer.CapabilityReceiver}>()!
 
-        log(ref.resourceType)
+        // log(ref.resourceType)
     }
 
     post {

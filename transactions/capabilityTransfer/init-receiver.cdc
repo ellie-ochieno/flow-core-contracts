@@ -1,4 +1,4 @@
-import CapabilityTransfer from 0x1cf0e2f2f715450
+import CapabilityTransfer from 0x1cf0e2f2f715450 
 transaction {
     let signer: AuthAccount
     let linkPath: Path
@@ -37,3 +37,4 @@ transaction {
             "CapabilityHolder Owner reference was not created correctly"
     }
 }
+ 
