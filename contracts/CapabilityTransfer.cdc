@@ -15,7 +15,7 @@ pub contract CapabilityTransfer {
     } 
 
     pub resource CapabilityHolder: CapabilityReceiver, Owner {
-        access(self) let capabilities: {Address: Capability}
+        pub let capabilities: {Address: Capability}
         pub let resourceType: String
 
         pub fun getAddressList(): [Address] {
@@ -26,17 +26,10 @@ pub contract CapabilityTransfer {
             log("I live inside storage of account ".concat(self.owner!.address.toString()))
              
             if let senderRef = sender as? &{Owner} {
-                log(senderRef.owner!.address)
-            }
-            
-            // log("Capability Sender: ".concat(senderAddress)
-            /* 
-            if let ref = capability.borrow<&{CapabilityReceiver}>() {
-                let address = ref.owner!.address
+                let address = senderRef.owner!.address
                 self.capabilities[address] = capability
                 log("Capability deposited by ".concat(address.toString()))
             }
-            */
         }
 
         pub fun getCapabilityByAddress(_ address: Address): Capability? {
@@ -59,3 +52,4 @@ pub contract CapabilityTransfer {
         self.ownerPath = /private/capabilityHolderOwner
     }
 }
+ 
