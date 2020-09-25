@@ -108,4 +108,3 @@ pub contract FlowIDTableStaking {
         return <-create NodeStaker(id: id, initialStake: initialBalance)    
     } 
 }
- zsdd
