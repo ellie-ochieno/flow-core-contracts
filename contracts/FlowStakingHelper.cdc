@@ -6,19 +6,74 @@ import FlowIDTableStaking from 0xe03daebed8ca0615
 
 pub contract FlowStakingHelper {
 
-    // Event that is emitted when tokens are deposited to the escrow vault
+    /// Event that is emitted when tokens are deposited to the escrow vault
     pub event TokensDeposited(amount: UFix64)
     
-    // Event that is emitted when tokens are successfully staked
+    /// Event that is emitted when tokens are successfully staked
     pub event StakeAccepted(amount: UFix64)
 
-    // Publicly available path
+    /// Event
+    pub event CapabilityDeposited(from: Address, to: Address)
+
+    /// Common paths to storage and capabilities
     pub let HelperStoragePath: Path
+    pub let HelperLinkPath: Path
+
+    pub let HolderStoragePath: Path
+    pub let HolderPublicPath: Path
+    pub let HolderOwnerPath: Path
+
+    /// CAPABILITY HOLDER
+    /// Empty inteface to expose owner of the resource
+    pub resource interface Owner {}
+
+    /// Publicly available interfaces to allow deposit of capabilities
+    pub resource interface CapabilityReceiver {
+        pub fun depositCapability(_ capability: Capability, depositor: &{Owner})
+    }
+
+    pub resource CapabilityHolder: CapabilityReceiver {
+        access(self) let capabilities: {String: Capability}
+
+        
+        /// Store capability in the dictionary for letter access
+        pub fun depositCapability(_ capability: Capability, depositor: &{Owner}) {
+            let owner = self.owner!.address;
+            let address = depositor.owner!.address
+            let key = address.toString()
+            self.capabilities[key] = capability
+            
+            /// Emit the event to notify owner
+            emit CapabilityDeposited(from: address, to: owner)
+        }
+
+        // Get capability by id
+        pub fun getCapabilityById(_ id: String): Capability? {
+            return self.capabilities[id]    
+        }
+
+        // Get capability by address
+        pub fun getCapabilityByAddress(_ address: Address): Capability? {
+            let key = address.toString()
+            return self.capabilities[key]
+        }
+
+        init(){
+            /// Init empty dictionary for capabilities
+            self.capabilities = {}
+        }
+    }
+
+    pub fun createCapabilityHolder(): @CapabilityHolder {
+        return  <- create CapabilityHolder()
+    }
 
     pub resource interface NodeHelper {
         access(contract) var nodeStaker: @FlowIDTableStaking.NodeStaker?
         pub let escrowVault: @FungibleToken.Vault
         
+        // TODO: implement addNodeInfo method here
+
         // Function to abort creation of node record and return tokens back
         pub fun abort(){
             pre{
@@ -34,8 +89,13 @@ pub contract FlowStakingHelper {
             }
         }
 
+        // Complete initialization of StakingHelper with node info
+        pub fun addNodeInfo(networkingKey: String, networkingAddress: String, nodeAwardVaultCapability: Capability, cutPercentage: UFix64)
+
         // Submit staking request to staking contract
         // Should be called ONCE to init the record in staking contract and get NodeRecord
+        // TODO: Node shouldnot be able to initiate staking process, since they will set cutPercentage
+        /* 
         pub fun submit(id: String, role: UInt8 ) {   
             pre{
                 // check that entry already exists? 
@@ -43,6 +103,7 @@ pub contract FlowStakingHelper {
                 id.length > 0: "id field can't be empty"
             }
         }
+        */
 
         // Request to unstake portion of staked tokens
         pub fun unstake(amount: UFix64) {
@@ -61,44 +122,45 @@ pub contract FlowStakingHelper {
     }
 
     pub resource StakingHelper: NodeHelper {
-        // TODO: do we need to restrict access to keys arguments? 
         // Staking parameters
         pub let stakingKey: String
 
         // Networking parameters
-        pub let networkingKey: String
-        pub let networkingAddress: String
+        pub var networkingKey: String
+        pub var networkingAddress: String
 
         // FlowToken Vault to hold escrow tokens
         pub let escrowVault: @FungibleToken.Vault
 
         // Receiver Capability for account, where rewards are paid
         pub let stakerAwardVaultCapability: Capability
-        pub let nodeAwardVaultCapability: Capability
+        pub var nodeAwardVaultCapability: Capability?
 
         // Portion of reward that goes to node operator
-        pub let cutPercentage: UFix64
+        pub var cutPercentage: UFix64
+
+        // Flag that to ensure StakingHelper is initialized by both parties
+        pub var initialized: Bool
 
         // Optional to store NodeStaker object from staking contract
         access(contract) var nodeStaker: @FlowIDTableStaking.NodeStaker?
-        
-        init(stakingKey: String, networkingKey: String, networkingAddress: String, stakerAwardVaultCapability: Capability, nodeAwardVaultCapability: Capability, cutPercentage: UFix64){
-            pre {
-                networkingAddress.length > 0 : "The networkingAddress cannot be empty"
-            }
 
+        init(stakingKey: String, stakerAwardVaultCapability: Capability){
             self.stakingKey = stakingKey
-            self.networkingKey = networkingKey
-            self.networkingAddress = networkingAddress
             self.stakerAwardVaultCapability = stakerAwardVaultCapability
-            self.nodeAwardVaultCapability = nodeAwardVaultCapability
-            self.cutPercentage = cutPercentage
+
+            self.networkingKey = ""
+            self.networkingAddress = ""
+            self.nodeAwardVaultCapability = nil
+            self.cutPercentage = 0.0
 
             // init resource with empty node record
             self.nodeStaker <- nil
 
             // initiate empty FungibleToken Vault to store escrowed tokens
-            self.escrowVault <- FlowToken.createEmptyVault()        
+            self.escrowVault <- FlowToken.createEmptyVault()
+
+            self.initialized = false        
         }
 
         destroy() {
@@ -106,6 +168,22 @@ pub contract FlowStakingHelper {
                         
             destroy self.escrowVault
             destroy self.nodeStaker
+        }
+
+        // ---------------------------------------------------------------------------------
+        // Type:    METHOD
+        // Name:    addNodeInfo
+        // Access:  Custody Provider
+        // Action:  Deposit tokens to escrow Vault   
+        // TODO:    We shall exclude this method from Token Holder interface
+
+        pub fun addNodeInfo(networkingKey: String, networkingAddress: String, nodeAwardVaultCapability: Capability, cutPercentage: UFix64) {
+            self.networkingKey = networkingKey
+            self.networkingAddress = networkingAddress
+            self.nodeAwardVaultCapability = nodeAwardVaultCapability
+            self.cutPercentage = cutPercentage
+
+            self.initialized = true 
         }
         
         // ---------------------------------------------------------------------------------
@@ -233,10 +311,11 @@ pub contract FlowStakingHelper {
         // Action: Withdraw rewards from staking contract
         pub fun withdrawReward(amount: UFix64){
             pre{
+                self.initialized == true: "StakingHelper is not fully initialized"
                 self.nodeStaker != nil: "NodeRecord was not initialized"    
             }
 
-            let nodeVaultRef = self.nodeAwardVaultCapability.borrow<&FungibleToken.Vault>()
+            let nodeVaultRef = self.nodeAwardVaultCapability!.borrow<&FungibleToken.Vault>()
             let stakerVaultRef = self.stakerAwardVaultCapability.borrow<&FungibleToken.Vault>()
 
             if let rewardVault <- self.nodeStaker?.withdrawRewardedTokens(amount: amount){
@@ -265,12 +344,19 @@ pub contract FlowStakingHelper {
     // Access:  Public
     //
     // Action: create new StakingHelper object with specified parameters
-    pub fun createHelper(stakingKey: String, networkingKey: String, networkingAddress: String, stakerAwardVaultCapability: Capability, nodeAwardVaultCapability: Capability, cutPercentage: UFix64): @StakingHelper {
-        return <- create StakingHelper(stakingKey: stakingKey, networkingKey: networkingKey, networkingAddress: networkingAddress, stakerAwardVaultCapability: stakerAwardVaultCapability, nodeAwardVaultCapability: nodeAwardVaultCapability, cutPercentage: cutPercentage)
+    pub fun createHelper(stakingKey: String, stakerAwardVaultCapability: Capability): @StakingHelper {
+        return <- create StakingHelper(stakingKey: stakingKey,  stakerAwardVaultCapability: stakerAwardVaultCapability)
     }
 
     init(){
         self.HelperStoragePath = /storage/flowStakingHelper
+        self.HelperLinkPath = /private/flowStakingHelper
+        
+        /// Init paths
+        self.HolderStoragePath = /storage/capabilityHolder
+        self.HolderPublicPath = /public/capabilityHolder
+        self.HolderOwnerPath = /private/capabilityHolderOwner
     }
 }
+ 
  
