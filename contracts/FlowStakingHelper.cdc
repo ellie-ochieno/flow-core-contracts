@@ -1,6 +1,6 @@
 import FlowToken from 0x0ae53cb6e3f42a79
 import FungibleToken from 0xee82856bf20e2aa6
-import FlowIDTableStaking from 0xe03daebed8ca0615
+import FlowIDTableStaking from 0x01cf0e2f2f715450
 
 // Use service account to mint tokens
 
@@ -13,11 +13,12 @@ pub contract FlowStakingHelper {
     pub event StakeAccepted(amount: UFix64)
 
     /// Event
-    pub event CapabilityDeposited(from: Address, to: Address)
+    pub event CapabilityDeposited(by: Address, to: Address)
 
     /// Common paths to storage and capabilities
     pub let HelperStoragePath: Path
     pub let HelperLinkPath: Path
+    pub let HelperNodeLinkPath: Path
 
     pub let HolderStoragePath: Path
     pub let HolderPublicPath: Path
@@ -33,29 +34,28 @@ pub contract FlowStakingHelper {
     }
 
     pub resource CapabilityHolder: CapabilityReceiver {
-        access(self) let capabilities: {String: Capability}
+        access(self) let capabilities: {Address: Capability}
 
         
-        /// Store capability in the dictionary for letter access
+        /// Allows to store capability into the dictionary by third party
+        /// "depositor" argument allows only owners of said resource to write
         pub fun depositCapability(_ capability: Capability, depositor: &{Owner}) {
             let owner = self.owner!.address;
             let address = depositor.owner!.address
-            let key = address.toString()
-            self.capabilities[key] = capability
+            self.capabilities[address] = capability
             
             /// Emit the event to notify owner
-            emit CapabilityDeposited(from: address, to: owner)
+            emit CapabilityDeposited(by: address, to: owner)
         }
 
-        // Get capability by id
-        pub fun getCapabilityById(_ id: String): Capability? {
-            return self.capabilities[id]    
+        /// Utility method to store capability by CapbilitHolder owner
+        pub fun storeCapability(_ capability: Capability, key: Address){
+            self.capabilities[key] = capability
         }
 
         // Get capability by address
         pub fun getCapabilityByAddress(_ address: Address): Capability? {
-            let key = address.toString()
-            return self.capabilities[key]
+            return self.capabilities[address]
         }
 
         init(){
@@ -92,9 +92,10 @@ pub contract FlowStakingHelper {
         // Complete initialization of StakingHelper with node info
         pub fun addNodeInfo(networkingKey: String, networkingAddress: String, nodeAwardVaultCapability: Capability, cutPercentage: UFix64)
 
+
         // Submit staking request to staking contract
         // Should be called ONCE to init the record in staking contract and get NodeRecord
-        // TODO: Node shouldnot be able to initiate staking process, since they will set cutPercentage
+        // TODO: Node should not be able to initiate staking process, since they will set cutPercentage
         /* 
         pub fun submit(id: String, role: UInt8 ) {   
             pre{
@@ -351,6 +352,7 @@ pub contract FlowStakingHelper {
     init(){
         self.HelperStoragePath = /storage/flowStakingHelper
         self.HelperLinkPath = /private/flowStakingHelper
+        self.HelperNodeLinkPath = /private/flowNodeHelper
         
         /// Init paths
         self.HolderStoragePath = /storage/capabilityHolder
