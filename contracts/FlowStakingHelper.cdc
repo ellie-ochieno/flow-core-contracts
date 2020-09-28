@@ -72,46 +72,26 @@ pub contract FlowStakingHelper {
         access(contract) var nodeStaker: @FlowIDTableStaking.NodeStaker?
         pub let escrowVault: @FungibleToken.Vault
         
-        // TODO: implement addNodeInfo method here
-
         // Function to abort creation of node record and return tokens back
-        pub fun abort(){
-            pre{
-                self.nodeStaker == nil: "NodeRecord was already initialized"
-            }
-        }
+        pub fun abort()
 
         // Return tokens from escrow back to custody provider
-        pub fun withdrawEscrow(amount: UFix64) {   
-            pre {
-                amount <= self.escrowVault.balance:
-                     "Amount is bigger than escrow"
-            }
-        }
+        pub fun withdrawEscrow(amount: UFix64)
 
         // Complete initialization of StakingHelper with node info
         pub fun addNodeInfo(networkingKey: String, networkingAddress: String, nodeAwardVaultCapability: Capability, cutPercentage: UFix64)
-
 
         // Submit staking request to staking contract
         // Should be called ONCE to init the record in staking contract and get NodeRecord
         // TODO: Node should not be able to initiate staking process, since they will set cutPercentage
         /* 
         pub fun submit(id: String, role: UInt8 ) {   
-            pre{
-                // check that entry already exists? 
-                self.nodeStaker == nil: "NodeRecord already initialized"
-                id.length > 0: "id field can't be empty"
-            }
+
         }
         */
 
         // Request to unstake portion of staked tokens
-        pub fun unstake(amount: UFix64) {
-            pre{
-                self.nodeStaker != nil: "NodeRecord was not initialized"    
-            }
-        }
+        pub fun unstake(amount: UFix64)
 
         // Return unlocked tokens from staking contract
         pub fun withdrawTokens(amount: UFix64) {
@@ -207,6 +187,9 @@ pub contract FlowStakingHelper {
         // Action:  Returns tokens from escrow back to custody provider
         //
         pub fun withdrawEscrow(amount: UFix64) {
+            pre {
+                amount <= self.escrowVault.balance: "Amount is bigger than escrow"
+            }
             // We will create temporary Vault in order to preserve one living in StakingHelper
             let tempVault <- self.escrowVault.withdraw(amount: amount)
             
@@ -220,6 +203,13 @@ pub contract FlowStakingHelper {
         // Action:  Submits staking request to staking contract
         //
         pub fun submit(id: String, role: UInt8 ) {
+            pre{
+                // TODO: add 
+                // check that entry already exists? 
+                self.nodeStaker == nil: "NodeRecord already initialized"
+                id.length > 0: "id field can't be empty"
+            }
+
             let stakingKey = self.stakingKey 
             let networkingKey = self.networkingKey 
             let networkingAddress = self.networkingAddress
@@ -236,6 +226,10 @@ pub contract FlowStakingHelper {
         // Action:  Abort initialization and return tokens back to custody provider
         //
         pub fun abort() {
+            pre {
+                self.nodeStaker == nil: "NodeRecord was already initialized"
+            }
+
             self.withdrawEscrow(amount: self.escrowVault.balance)
             
             // TODO: post condition throwing error here...
@@ -285,6 +279,10 @@ pub contract FlowStakingHelper {
         // Action: Function to request to unstake portion of staked tokens
         // 
         pub fun unstake(amount: UFix64) {
+            pre{
+                self.nodeStaker != nil: "NodeRecord was not initialized"    
+            }
+
             self.nodeStaker?.requestUnStaking(amount: amount)
         }
 
