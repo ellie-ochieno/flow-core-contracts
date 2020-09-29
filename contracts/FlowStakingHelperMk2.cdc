@@ -109,8 +109,7 @@ pub contract FlowStakingHelper {
         pub let stakingKey: String
         pub var stakerRewardVaultCapability: Capability
 
-        pub let networkingKey: String
-        pub let networkingAddress: String        
+        pub let nodeInfo: Info   
 
         access(contract) var nodeStaker: @FlowIDTableStaking.NodeStaker?
 
@@ -119,13 +118,23 @@ pub contract FlowStakingHelper {
             self.stakerRewardVaultCapability = newCapability
         }
 
+        pub fun submit(id: String, tokensCommitted: @FungibleToken.Vault) {
+            let stakingKey = self.stakingKey
+            let networkingKey = self.nodeInfo.networkingKey
+            let networkingAddress = self.nodeInfo.networkingAddress
+            let role = self.nodeInfo.role;
+
+            self.nodeStaker <-! FlowIDTableStaking.addNodeRecord(id: id, role: role, networkingAddress: networkingAddress, networkingKey: networkingKey, stakingKey: stakingKey, tokensCommitted: <- tokensCommitted)
+        }
+
+
+        /// Init and Destroy
         init(stakingKey: String, rewardVaultCapability: Capability, nodeInfo: Info) {
             self.stakingKey = stakingKey
             self.stakerRewardVaultCapability = rewardVaultCapability
+            self.nodeInfo = nodeInfo
 
-            self.networkingKey = nodeInfo.networkingKey
-            self.networkingAddress = nodeInfo.networkingAddress
-
+            // Init with empty nodeStaker
             self.nodeStaker <- nil
         }
 
