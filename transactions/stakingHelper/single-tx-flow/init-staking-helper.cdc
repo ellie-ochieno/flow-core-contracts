@@ -1,16 +1,21 @@
-import FlowStakingHelper from 0x045a1763c93006ca
+import FungibleToken from 0xee82856bf20e2aa6
+import FlowStakingHelper from 0x179b6b1cb6755e31
 
-transaction(nodeOperator: Address) {
+transaction(stakingKey:String, nodeId: String, stakeAmount: UFix64, nodeOperatorAddress: Address) {
     let staker: AuthAccount
-    let privatePath: Path
+    let nodeOperator: PublicAccount
 
     prepare(staker: AuthAccount){
         self.staker = staker
+        self.nodeOperator = getAccount(nodeOperatorAddress)
 
-        /// Create CapabilityHolder for Token Holder account
+    /// -----------------------------------------------------------------------------------------------------------
+    /// 1. Create CapabilityHolder for Token Holder account
+    /// -----------------------------------------------------------------------------------------------------------
         let storagePath = FlowStakingHelper.storageCapabilityHolder
-        let privatePath = FlowStakingHelper.privateCapabilityHolder
+        let ownerLinkPath = FlowStakingHelper.privateHolderOwner
 
+        /// Create new CapabilityHolder
         let capabilityHolder <- FlowStakingHelper.createCapabilityHolder()
 
         /// Clear previously stored object
@@ -18,20 +23,66 @@ transaction(nodeOperator: Address) {
             destroy oldHolder
         }
         self.staker.save(<-capabilityHolder, to: storagePath)
+        self.staker.link<&{FlowStakingHelper.Owner}>(ownerLinkPath, target: storagePath)
 
-        // Token Holder only needs Owner
-        self.staker.link<&{FlowStakingHelper.Owner}>(privatePath, target: storagePath)
+    /// -----------------------------------------------------------------------------------------------------------
+    /// 2. Create new StakingHelper
+    /// -----------------------------------------------------------------------------------------------------------
+        let tokenReceiverPath = /public/flowTokenReceiver
+        let rewardVaultCapability = self.staker.getCapability(tokenReceiverPath)!
 
-        /// store privatePath value to be accessible in post block
-        self.privatePath = privatePath
+        /// Get node info from nodeOperator public capability
+        let publicNodeInfoPath = FlowStakingHelper.publicNodeInfoPath
+        let nodeInfo =  self.nodeOperator
+                        .getCapability(publicNodeInfoPath)!
+                        .borrow<&FlowStakingHelper.OperatorInfo>()!
+                        .getNodeInfo()
 
-        /// TODO: Implement creation of staking helper
+        let tokenVaultReference = self.staker.borrow<&FungibleToken.Vault>(from: /storage/flowTokenVault)!
+        let tokensCommitted <- tokenVaultReference.withdraw(amount:stakeAmount) 
+        
+        // Create new StakingHelper
+        let stakingHelper <- FlowStakingHelper.createStakingHelper(
+                stakingKey: stakingKey, 
+                rewardVaultCapability: rewardVaultCapability, 
+                nodeInfo: nodeInfo,
+                id: nodeId,
+                tokensCommitted: <- tokensCommitted
+            )
+
+    /// -----------------------------------------------------------------------------------------------------------
+    /// 3. Save capabilities to respected accounts
+    /// -----------------------------------------------------------------------------------------------------------
+
+        /// Prepare paths that will be used to store StakingHelper and create capabilities to it
+        let storageStakingHelper = FlowStakingHelper.storageStakingHelper
+        let linkStakingHelper = FlowStakingHelper.linkStakingHelper
+        let linkNodeHelper = FlowStakingHelper.linkNodeHelper
+
+        /// Save StakingHelper into newly created account and distribute capabilities to Token Holder and Node Operator
+        let newAccount = AuthAccount(payer: self.staker)
+        newAccount.save(<-stakingHelper, to: storageStakingHelper)
+        newAccount.link<&FlowStakingHelper.StakingHelper>(linkStakingHelper, target: storageStakingHelper)
+        newAccount.link<&{FlowStakingHelper.NodeHelper}>(linkNodeHelper, target: storageStakingHelper) 
+
+        let stakerCapability = newAccount.getCapability(linkStakingHelper)!
+        let nodeCapability = newAccount.getCapability(linkNodeHelper)!
+
+        // Store capability inside CapabilityHolder owned by Token Holder
+        let stakerCapabilityHolder = self.staker.borrow<&FlowStakingHelper.CapabilityHolder>(from: storagePath)!
+        stakerCapabilityHolder.storeCapability(stakerCapability, key: nodeOperatorAddress)
+
+         
+        // Deposit capability into CapabilityHolder owned by Node Operator
+        let stakerCapabilityOwner = self.staker
+                                .getCapability(ownerLinkPath)!
+                                .borrow<&{FlowStakingHelper.Owner}>()!
+        log(stakerCapabilityOwner)
+         
+        let receiverPath = FlowStakingHelper.publicCapabilityReceiver
+        let nodeCapabilityHolder = self.nodeOperator.getCapability(receiverPath)!
+                                       .borrow<&{FlowStakingHelper.CapabilityReceiver}>()!
+        
+        nodeCapabilityHolder.depositCapability(nodeCapability, depositor: stakerCapabilityOwner)
     }
-
-    post {
-        self.staker
-            .getCapability(self.privatePath)!
-            .check<&{FlowStakingHelper.Owner}>():
-            "CapabilityReceiver capability was not created properly"
-    }
-}
+} 
