@@ -1,5 +1,6 @@
 import FlowIDTableStaking from 0xIDENTITYTABLEADDRESS
 
+<<<<<<< HEAD
 transaction(nodeAddress: Address) {
 
     prepare(acct: AuthAccount) {
@@ -9,6 +10,14 @@ transaction(nodeAddress: Address) {
 
         // Create a new delegator object for the node
         let newDelegator <- nodeRef.createNewDelegator()
+=======
+transaction(nodeID: String) {
+
+    prepare(acct: AuthAccount) {
+
+        // Create a new delegator object for the node
+        let newDelegator <- FlowIDTableStaking.registerNewDelegator(nodeID: nodeID)
+>>>>>>> struct
 
         // Store the delegator object
         acct.save(<-newDelegator, to: FlowIDTableStaking.DelegatorStoragePath)

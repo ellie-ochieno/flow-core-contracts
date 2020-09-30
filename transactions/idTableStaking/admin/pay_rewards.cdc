@@ -9,7 +9,11 @@ transaction {
 
     prepare(acct: AuthAccount) {
         // borrow a reference to the admin object
+<<<<<<< HEAD
         self.adminRef = acct.borrow<&FlowIDTableStaking.Admin>(from: /storage/flowStakingAdmin)
+=======
+        self.adminRef = acct.borrow<&FlowIDTableStaking.Admin>(from: FlowIDTableStaking.StakingAdminStoragePath)
+>>>>>>> struct
             ?? panic("Could not borrow reference to staking admin")
     }
 

@@ -5,6 +5,8 @@ package contracts
 import (
 	"strings"
 
+	ftcontracts "github.com/onflow/flow-ft/lib/go/contracts"
+
 	"github.com/onflow/flow-core-contracts/lib/go/contracts/internal/assets"
 )
 
@@ -23,39 +25,82 @@ const (
 	defaultIDTableAddr       = "FLOWIDTABLESTAKINGADDRESS"
 	defaultQCAddr            = "QCADDRESS"
 	defaultDKGAddr           = "DKGADDRESS"
+	defaultFlowFeesAddr      = "0xe5a8b7f23e8b548f"
 )
 
-// FlowToken returns the FlowToken contract. importing the
+// FungibleToken returns the FungibleToken contract interface.
+func FungibleToken() []byte {
+	return ftcontracts.FungibleToken()
+}
+
+// FlowToken returns the FlowToken contract.
 //
 // The returned contract will import the FungibleToken contract from the specified address.
-func FlowToken() []byte {
-	code := assets.MustAssetString(contractPrefix + flowTokenFilename)
+func FlowToken(fungibleTokenAddr string) []byte {
+	code := assets.MustAssetString(flowTokenFilename)
+
+	code = strings.ReplaceAll(
+		code,
+		defaultFungibleTokenAddr,
+		fungibleTokenAddr,
+	)
+
 	return []byte(code)
 }
 
 // FlowFees returns the FlowFees contract.
 //
-// The returned contract imports the FungibleToken and FlowToken
-// contracts from the default addresses.
-func FlowFees() []byte {
-	code := assets.MustAssetString(contractPrefix + flowFeesFilename)
+// The returned contract will import the FungibleToken and FlowToken
+// contracts from the specified addresses.
+func FlowFees(fungibleTokenAddr, flowTokenAddr string) []byte {
+	code := assets.MustAssetString(flowFeesFilename)
+
+	code = strings.ReplaceAll(
+		code,
+		defaultFungibleTokenAddr,
+		fungibleTokenAddr,
+	)
+
+	code = strings.ReplaceAll(
+		code,
+		defaultFlowTokenAddr,
+		flowTokenAddr,
+	)
 
 	return []byte(code)
 }
 
 // FlowServiceAccount returns the FlowServiceAccount contract.
 //
-// The returned contract imports the FungibleToken, FlowToken and FlowFees
-// contracts from the default addresses.
-func FlowServiceAccount() []byte {
-	code := assets.MustAssetString(contractPrefix + flowServiceAccountFilename)
+// The returned contract will import the FungibleToken, FlowToken and FlowFees
+// contracts from the specified addresses.
+func FlowServiceAccount(fungibleTokenAddr, flowTokenAddr, flowFeesAddr string) []byte {
+	code := assets.MustAssetString(flowServiceAccountFilename)
+
+	code = strings.ReplaceAll(
+		code,
+		defaultFungibleTokenAddr,
+		fungibleTokenAddr,
+	)
+
+	code = strings.ReplaceAll(
+		code,
+		defaultFlowTokenAddr,
+		flowTokenAddr,
+	)
+
+	code = strings.ReplaceAll(
+		code,
+		defaultFlowFeesAddr,
+		flowFeesAddr,
+	)
 
 	return []byte(code)
 }
 
 // FlowIDTableStaking returns the FlowIDTableStaking contract
 func FlowIDTableStaking(ftAddr, flowTokenAddr string) []byte {
-	code := assets.MustAssetString(contractPrefix + flowIdentityTableFilename)
+	code := assets.MustAssetString(flowIdentityTableFilename)
 
 	code = strings.ReplaceAll(code, defaultFungibleTokenAddr, ftAddr)
 	code = strings.ReplaceAll(code, defaultFlowTokenAddr, flowTokenAddr)
