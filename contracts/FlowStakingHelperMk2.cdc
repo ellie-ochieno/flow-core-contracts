@@ -1,11 +1,11 @@
 import FlowToken from 0x0ae53cb6e3f42a79
 import FungibleToken from 0xee82856bf20e2aa6
-import FlowIDTableStaking from 0xe03daebed8ca0615
+import FlowIDTableStaking from 0x01cf0e2f2f715450
 
 pub contract FlowStakingHelper {
     /// EVENTS
-    pub event CapabilityDeposited(by: Address, to: Address)
     /// TODO: Implement necessary events
+    pub event CapabilityDeposited(by: Address, to: Address)
 
     /// -----------------------------------------------------------------------------------------
     /// RESOURCES AND STRUCTS
@@ -34,10 +34,6 @@ pub contract FlowStakingHelper {
         init(role: UInt8, networkingKey: String, networkingAddress: String){
             self.info = Info(role: role, networkingKey: networkingKey, networkingAddress: networkingAddress)
         }
-    }
-
-    pub fun createNewOperatorInfo(role: UInt8, networkingKey: String, networkingAddress: String ): @OperatorInfo {
-        return <- create OperatorInfo(role: role, networkingKey: networkingKey, networkingAddress: networkingAddress)
     }
 
     /// CapabilityHolder is a resource that will be living in the Node Operator storage
@@ -90,11 +86,6 @@ pub contract FlowStakingHelper {
         }
     }
 
-    pub fun createCapabilityHolder(): @CapabilityHolder {
-        return <- create CapabilityHolder()
-    }
-
-
     /// NodeHelper interface will be used to provide NodeOperator restricted capability to 
     /// control Token Holders tokens. We want to provide all the necessary control, but restrict
     /// everything that only Token Holder should be able to do
@@ -111,31 +102,84 @@ pub contract FlowStakingHelper {
 
         pub let nodeInfo: Info   
 
-        access(contract) var nodeStaker: @FlowIDTableStaking.NodeStaker?
+        access(contract) var nodeStaker: @FlowIDTableStaking.NodeStaker
 
-        /// Method to update capability pointing to a Vault, which would accumulate rewards
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
+        /// Action:  Commit more tokens to stake
+        pub fun stakeNewTokens(_ vault: @FungibleToken.Vault){
+            self.nodeStaker.stakeNewTokens(<- vault)
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
+        /// Action: Function to request to commit to stake a certain amount of unlocked tokens
+        pub fun stakeUnlockedTokens(amount: UFix64) {
+             self.nodeStaker.stakeUnlockedTokens(amount: amount)    
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
+        /// Action: Function to request to unstake portion of staked tokens
+        /// 
+        pub fun unstake(amount: UFix64) {
+            self.nodeStaker.requestUnStaking(amount: amount)
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
+        /// Action: Return unlocked tokens from staking contract
+        pub fun withdrawTokens(amount: UFix64){
+            let vault <- self.nodeStaker.withdrawUnlockedTokens(amount: amount)
+            /// TODO: Implement returning of tokens back to staker
+            destroy vault;
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
+        /// Action: Withdraw rewards from staking contract
+        pub fun withdrawReward(amount: UFix64){
+            let rewardVault <- self.nodeStaker.withdrawRewardedTokens(amount: amount)
+            /// TODO: Implement returning of tokens back to staker
+            destroy rewardVault
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
+        /// Action: Stake rewards stored inside of staking contract without returning them to involved parties
+        pub fun stakeRewards(amount: UFix64){
+            self.nodeStaker.stakeRewardedTokens(amount: amount)
+        }
+
+
+        /// ---------------------------------------------------------------------------------
+        /// Access: Token Holder
+        /// Action: Method to update capability pointing to a Vault, which would accumulate rewards
         pub fun setRewardVaultCapability(_ newCapability: Capability){
             self.stakerRewardVaultCapability = newCapability
         }
 
-        pub fun submit(id: String, tokensCommitted: @FungibleToken.Vault) {
-            let stakingKey = self.stakingKey
-            let networkingKey = self.nodeInfo.networkingKey
-            let networkingAddress = self.nodeInfo.networkingAddress
-            let role = self.nodeInfo.role;
 
-            self.nodeStaker <-! FlowIDTableStaking.addNodeRecord(id: id, role: role, networkingAddress: networkingAddress, networkingKey: networkingKey, stakingKey: stakingKey, tokensCommitted: <- tokensCommitted)
-        }
-
-
+        /// ---------------------------------------------------------------------------------
         /// Init and Destroy
-        init(stakingKey: String, rewardVaultCapability: Capability, nodeInfo: Info) {
+        init(stakingKey: String, rewardVaultCapability: Capability, nodeInfo: Info, id: String, tokensCommitted: @FungibleToken.Vault) {
             self.stakingKey = stakingKey
             self.stakerRewardVaultCapability = rewardVaultCapability
             self.nodeInfo = nodeInfo
 
+            let networkingKey = nodeInfo.networkingKey
+            let networkingAddress = nodeInfo.networkingAddress
+            let role = nodeInfo.role;
+
             // Init with empty nodeStaker
-            self.nodeStaker <- nil
+            self.nodeStaker <- FlowIDTableStaking.addNodeRecord(
+                    id: id, 
+                    role: role, 
+                    networkingAddress: networkingAddress, 
+                    networkingKey: networkingKey, 
+                    stakingKey: stakingKey, 
+                    tokensCommitted: <- tokensCommitted
+                )
         }
 
         destroy() {
@@ -143,15 +187,10 @@ pub contract FlowStakingHelper {
         }
     }
 
-    pub fun createStakingHelper(stakingKey: String, rewardVaultCapability: Capability, nodeInfo: Info): @StakingHelper {
-        return <- create StakingHelper(stakingKey: stakingKey, rewardVaultCapability: rewardVaultCapability, nodeInfo: nodeInfo)
-    }
-
 
     /// -----------------------------------------------------------------------------------------
-    /// CONTRACT
+    /// CONTRACT MAIN
     /// -----------------------------------------------------------------------------------------
-
    
     /// PATHS
     pub let storageNodeInfoPath: Path
@@ -159,17 +198,49 @@ pub contract FlowStakingHelper {
 
     pub let storageCapabilityHolder: Path
     pub let privateCapabilityHolder: Path
-    pub let publicCapabilityHolder: Path
+    pub let privateHolderOwner: Path
+    pub let publicCapabilityReceiver: Path
+
+    pub let storageStakingHelper: Path
+    pub let linkNodeHelper: Path
+    pub let linkStakingHelper: Path
 
     /// METHODS
 
+    pub fun createNewOperatorInfo(role: UInt8, networkingKey: String, networkingAddress: String ): @OperatorInfo {
+        return <- create OperatorInfo(
+                role: role, 
+                networkingKey: networkingKey, 
+                networkingAddress: networkingAddress
+            )
+    }
+
+    pub fun createCapabilityHolder(): @CapabilityHolder {
+        return <- create CapabilityHolder()
+    }
+
+    pub fun createStakingHelper(stakingKey: String, rewardVaultCapability: Capability, nodeInfo: Info, id:String, tokensCommitted: @FungibleToken.Vault): @StakingHelper {
+        return <- create StakingHelper(
+                stakingKey: stakingKey, 
+                rewardVaultCapability: rewardVaultCapability, 
+                nodeInfo: nodeInfo, 
+                id: id, 
+                tokensCommitted: <- tokensCommitted
+            )
+    }
+
     /// INIT
     init(){
-        self.storageNodeInfoPath = /storage/nodeOperatorInfo
-        self.publicNodeInfoPath = /public/nodeOperatorInfo
+        self.storageNodeInfoPath = /storage/flowNodeOperatorInfo
+        self.publicNodeInfoPath = /public/flowNodeOperatorInfo
 
-        self.storageCapabilityHolder = /storage/capabilityHolder
-        self.privateCapabilityHolder = /private/capabilityHolder
-        self.publicCapabilityHolder = /public/capabilityHolder
+        self.storageCapabilityHolder = /storage/flowCapabilityHolder
+        self.privateCapabilityHolder = /private/flowCapabilityHolder
+        self.privateHolderOwner = /private/flowCapabilityHolderOwner
+        self.publicCapabilityReceiver = /public/flowCapabilityReceiver
+
+        self.storageStakingHelper = /storage/flowStakingHelper
+        self.linkNodeHelper = /private/flowNodeHelper
+        self.linkStakingHelper = /private/flowStakingHelper
     }
 }
