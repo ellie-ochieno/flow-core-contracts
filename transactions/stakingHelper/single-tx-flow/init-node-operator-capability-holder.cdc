@@ -1,4 +1,4 @@
-import FlowStakingHelper from 0x045a1763c93006ca
+import FlowStakingHelper from 0x179b6b1cb6755e31
 
 transaction {
     let node: AuthAccount
@@ -7,11 +7,16 @@ transaction {
     prepare(node: AuthAccount){
         self.node = node
 
-        let publicPath = FlowStakingHelper.publicCapabilityHolder
         let storagePath = FlowStakingHelper.storageCapabilityHolder
-        let privatePath = FlowStakingHelper.privateCapabilityHolder
+        let publicPath = FlowStakingHelper.publicCapabilityReceiver
+        let privatePath = FlowStakingHelper.privateHolderOwner
 
         let capabilityHolder <- FlowStakingHelper.createCapabilityHolder()
+
+        if let oldHolder <- self.node.load<@FlowStakingHelper.CapabilityHolder>(from: storagePath) {
+            destroy oldHolder
+        }
+
         self.node.save(<-capabilityHolder, to: storagePath)
 
         self.node.link<&{FlowStakingHelper.Owner}>(privatePath, target: storagePath)
