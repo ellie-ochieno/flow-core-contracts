@@ -107,8 +107,8 @@ pub contract FlowStakingHelper {
         /// ---------------------------------------------------------------------------------
         /// Access:  TODO: DEFINE ACCESS
         /// Action:  Commit more tokens to stake
-        pub fun stakeNewTokens(_ vault: @FungibleToken.Vault){
-            self.nodeStaker.stakeNewTokens(<- vault)
+        pub fun stakeNewTokens(_ tokens: @FungibleToken.Vault){
+            self.nodeStaker.stakeNewTokens(<- tokens)
         }
 
         /// ---------------------------------------------------------------------------------
@@ -120,35 +120,42 @@ pub contract FlowStakingHelper {
 
         /// ---------------------------------------------------------------------------------
         /// Access:  TODO: DEFINE ACCESS
+        /// Action: Stake rewards stored inside of staking contract without returning them to involved parties
+        pub fun stakeRewardedTokens(amount: UFix64){
+            self.nodeStaker.stakeRewardedTokens(amount: amount)
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
         /// Action: Function to request to unstake portion of staked tokens
         /// 
-        pub fun unstake(amount: UFix64) {
+        pub fun requestUnStaking(amount: UFix64) {
             self.nodeStaker.requestUnStaking(amount: amount)
         }
 
         /// ---------------------------------------------------------------------------------
         /// Access:  TODO: DEFINE ACCESS
+        /// Action: Function to request to unstake portion of staked tokens
+        /// 
+        /// TODO: Do we need this method?
+        pub fun unstakeAll() {
+            self.nodeStaker.unstakeAll()
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access:  TODO: DEFINE ACCESS
         /// Action: Return unlocked tokens from staking contract
-        pub fun withdrawTokens(amount: UFix64){
-            let vault <- self.nodeStaker.withdrawUnlockedTokens(amount: amount)
-            /// TODO: Implement returning of tokens back to staker
-            destroy vault;
+        pub fun withdrawUnlockedTokens(amount: UFix64){
+            let unlockedTokens <- self.nodeStaker.withdrawUnlockedTokens(amount: amount)
+            self.returnTokensToStaker(tokens: <- unlockedTokens)
         }
 
         /// ---------------------------------------------------------------------------------
         /// Access:  TODO: DEFINE ACCESS
         /// Action: Withdraw rewards from staking contract
-        pub fun withdrawReward(amount: UFix64){
-            let rewardVault <- self.nodeStaker.withdrawRewardedTokens(amount: amount)
-            /// TODO: Implement returning of tokens back to staker
-            destroy rewardVault
-        }
-
-        /// ---------------------------------------------------------------------------------
-        /// Access:  TODO: DEFINE ACCESS
-        /// Action: Stake rewards stored inside of staking contract without returning them to involved parties
-        pub fun stakeRewards(amount: UFix64){
-            self.nodeStaker.stakeRewardedTokens(amount: amount)
+        pub fun withdrawRewardedTokens(amount: UFix64){
+            let rewardTokens <- self.nodeStaker.withdrawRewardedTokens(amount: amount)
+            self.returnTokensToStaker(tokens: <- rewardTokens)
         }
 
 
@@ -157,6 +164,14 @@ pub contract FlowStakingHelper {
         /// Action: Method to update capability pointing to a Vault, which would accumulate rewards
         pub fun setRewardVaultCapability(_ newCapability: Capability){
             self.stakerRewardVaultCapability = newCapability
+        }
+
+        /// ---------------------------------------------------------------------------------
+        /// Access: Internal
+        /// Action: Method to pass tokens back to Token Holder via stored vault capability
+        pub fun returnTokensToStaker(tokens: @FungibleToken.Vault) {
+            let stakerVault = self.stakerRewardVaultCapability.borrow<&FungibleToken.Vault>()!
+            stakerVault.deposit(from: <- tokens)
         }
 
 
