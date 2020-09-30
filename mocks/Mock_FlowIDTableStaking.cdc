@@ -100,7 +100,7 @@ pub contract FlowIDTableStaking {
         }
     }
 
-    pub fun addNodeRecord(id: String, role: UInt8, networkingAddress: String, networkingKey: String, stakingKey: String, tokensCommitted: @FungibleToken.Vault, cutPercentage: UFix64): @NodeStaker {
+    pub fun addNodeRecord(id: String, role: UInt8, networkingAddress: String, networkingKey: String, stakingKey: String, tokensCommitted: @FungibleToken.Vault): @NodeStaker {
         let initialBalance = tokensCommitted.balance
         destroy tokensCommitted
 
