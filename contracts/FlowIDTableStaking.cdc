@@ -2,8 +2,8 @@
 
     FlowIDTableStaking
 
-    The Flow ID Table and Staking contract manages 
-    node operators' and delegators' information 
+    The Flow ID Table and Staking contract manages
+    node operators' and delegators' information
     and Flow tokens that are staked as part of the Flow Protocol.
 
     It is recommended to check out the staking page on the Flow Docs site
@@ -19,8 +19,8 @@
     Each node has multiple token buckets that hold their tokens
     based on their status: committed, staked, unstaking, unstaked, and rewarded.
 
-    The Admin has the authority to remove node records, 
-    refund insufficiently staked nodes, pay rewards, 
+    The Admin has the authority to remove node records,
+    refund insufficiently staked nodes, pay rewards,
     and move tokens between buckets. These will happen once every epoch.
 
     All the node info and staking info is publicly accessible
@@ -84,7 +84,7 @@ pub contract FlowIDTableStaking {
     /// value = decimal number between 0 and 1 indicating a percentage
     access(contract) var rewardRatios: {UInt8: UFix64}
 
-    /// The percentage of rewards that every node operator takes from 
+    /// The percentage of rewards that every node operator takes from
     /// the users that are delegating to it
     access(contract) var nodeDelegatingRewardCut: UFix64
 
@@ -104,7 +104,7 @@ pub contract FlowIDTableStaking {
         /// Set when the node is created
         pub let id: String
 
-        /// The type of node: 
+        /// The type of node:
         /// 1 = collection
         /// 2 = consensus
         /// 3 = execution
@@ -156,9 +156,9 @@ pub contract FlowIDTableStaking {
 
         init(id: String,
              role: UInt8,  /// role that the node will have for future epochs
-             networkingAddress: String, 
-             networkingKey: String, 
-             stakingKey: String, 
+             networkingAddress: String,
+             networkingKey: String,
+             stakingKey: String,
              tokensCommitted: @FungibleToken.Vault
         ) {
             pre {
@@ -394,7 +394,7 @@ pub contract FlowIDTableStaking {
             nodeRecord.tokensCommitted.deposit(from: <-tokens)
         }
 
-        /// Stake tokens that are in the tokensUnstaked bucket 
+        /// Stake tokens that are in the tokensUnstaked bucket
         /// but haven't been officially staked
         pub fun stakeUnstakedTokens(amount: UFix64) {
 
@@ -410,7 +410,7 @@ pub contract FlowIDTableStaking {
             }
         }
 
-        /// Stake tokens that are in the tokensRewarded bucket 
+        /// Stake tokens that are in the tokensRewarded bucket
         /// but haven't been officially staked
         pub fun stakeRewardedTokens(amount: UFix64) {
 
@@ -433,14 +433,14 @@ pub contract FlowIDTableStaking {
             let nodeRecord = FlowIDTableStaking.borrowNodeRecord(self.id)
 
             assert (
-                nodeRecord.tokensStaked.balance + 
-                nodeRecord.tokensCommitted.balance 
+                nodeRecord.tokensStaked.balance +
+                nodeRecord.tokensCommitted.balance
                 >= amount + nodeRecord.tokensRequestedToUnstake,
                 message: "Not enough tokens to unstake!"
             )
 
             assert (
-                nodeRecord.delegators.length == 0 || 
+                nodeRecord.delegators.length == 0 ||
                 FlowIDTableStaking.isGreaterThanMinimumForRole(numTokens: FlowIDTableStaking.getTotalCommittedBalance(nodeRecord.id) - amount, role: nodeRecord.role),
                 message: "Cannot unstake below the minimum if there are delegators"
             )
@@ -465,7 +465,7 @@ pub contract FlowIDTableStaking {
                 /// update request to show that leftover amount is requested to be unstaked
                 /// at the end of the current epoch
                 nodeRecord.tokensRequestedToUnstake = nodeRecord.tokensRequestedToUnstake + (amount - amountCommitted)
-            }  
+            }
         }
 
         /// Requests to unstake all of the node operators staked and committed tokens,
@@ -492,7 +492,7 @@ pub contract FlowIDTableStaking {
                 nodeRecord.tokensUnstaked.deposit(from: <-nodeRecord.tokensCommitted.withdraw(amount: nodeRecord.tokensCommitted.balance))
 
             }
-            
+
             /// update request to show that leftover amount is requested to be unstaked
             /// at the end of the current epoch
             nodeRecord.tokensRequestedToUnstake = nodeRecord.tokensStaked.balance
@@ -584,8 +584,8 @@ pub contract FlowIDTableStaking {
             let delRecord = nodeRecord.borrowDelegatorRecord(self.id)
 
             assert (
-                delRecord.tokensStaked.balance + 
-                delRecord.tokensCommitted.balance 
+                delRecord.tokensStaked.balance +
+                delRecord.tokensCommitted.balance
                 >= amount + delRecord.tokensRequestedToUnstake,
                 message: "Not enough tokens to unstake!"
             )
@@ -607,7 +607,7 @@ pub contract FlowIDTableStaking {
                 /// update request to show that leftover amount is requested to be unstaked
                 /// at the end of the current epoch
                 delRecord.tokensRequestedToUnstake = delRecord.tokensRequestedToUnstake + (amount - amountCommitted)
-            }  
+            }
         }
 
         /// Withdraw tokens from the unstaked bucket
@@ -659,7 +659,7 @@ pub contract FlowIDTableStaking {
         /// after the staking auction phase
         ///
         /// Also sets the initial weight of all the accepted nodes
-        /// 
+        ///
         /// Parameter: approvedNodeIDs: A list of nodeIDs that have been approved
         /// by the protocol to be a staker for the next epoch. The node software
         /// checks if the node that corresponds to each proposed ID is running properly
@@ -696,7 +696,7 @@ pub contract FlowIDTableStaking {
                     for delegator in nodeRecord.delegators.keys {
                         let delRecord = nodeRecord.borrowDelegatorRecord(delegator)
 
-                        if delRecord.tokensCommitted.balance > 0.0 { 
+                        if delRecord.tokensCommitted.balance > 0.0 {
                             /// move their committed tokens back to their unstaked tokens
                             delRecord.tokensUnstaked.deposit(from: <-delRecord.tokensCommitted.withdraw(amount: delRecord.tokensCommitted.balance))
                         }
@@ -748,7 +748,7 @@ pub contract FlowIDTableStaking {
                 /// Mint the tokens to reward the operator
                 let tokenReward <- flowTokenMinter.mintTokens(amount: rewardAmount)
 
-                emit RewardsPaid(nodeID: nodeRecord.id, amount: tokenReward.balance) 
+                emit RewardsPaid(nodeID: nodeRecord.id, amount: tokenReward.balance)
 
                 // Iterate through all delegators and reward them their share
                 // of the rewards for the tokens they have staked for this node
@@ -777,11 +777,11 @@ pub contract FlowIDTableStaking {
                     } else {
                         destroy delegatorReward
                     }
-                } 
+                }
 
                 if tokenReward.balance > 0.0 {
                     /// Deposit the node Rewards into their tokensRewarded bucket
-                    nodeRecord.tokensRewarded.deposit(from: <-tokenReward)  
+                    nodeRecord.tokensRewarded.deposit(from: <-tokenReward)
                 } else {
                     destroy tokenReward
                 }
@@ -794,7 +794,7 @@ pub contract FlowIDTableStaking {
         /// Tokens that were unstaking during the last epoch are fully unstaked
         /// Unstaking requests are filled by moving those tokens from staked to unstaking
         pub fun moveTokens() {
-            
+
             let allNodeIDs = FlowIDTableStaking.getNodeIDs()
 
             for nodeID in allNodeIDs {
@@ -863,7 +863,7 @@ pub contract FlowIDTableStaking {
             FlowIDTableStaking.epochTokenPayout = newPayout
         }
 
-        /// Admin calls this to change the percentage 
+        /// Admin calls this to change the percentage
         /// of delegator rewards every node operator takes
         pub fun setCutPercentage(_ newCutPercentage: UFix64) {
             pre {
@@ -883,7 +883,7 @@ pub contract FlowIDTableStaking {
     pub fun addNodeRecord(id: String, role: UInt8, networkingAddress: String, networkingKey: String, stakingKey: String, tokensCommitted: @FungibleToken.Vault): @NodeStaker {
 
         let initialBalance = tokensCommitted.balance
-        
+
         let newNode <- create NodeRecord(id: id, role: role, networkingAddress: networkingAddress, networkingKey: networkingKey, stakingKey: stakingKey, tokensCommitted: <-tokensCommitted)
 
         // Insert the node to the table
@@ -891,7 +891,7 @@ pub contract FlowIDTableStaking {
 
         // return a new NodeStaker object that the node operator stores in their account
         return <-create NodeStaker(id: id)
-    
+
     }
 
     /// Registers a new delegator with a unique ID for the specified node operator
@@ -958,7 +958,7 @@ pub contract FlowIDTableStaking {
 
     /// Gets an array of all the nodeIDs that are staked.
     /// Only nodes that are participating in the current epoch
-    /// can be staked, so this is an array of all the active 
+    /// can be staked, so this is an array of all the active
     /// node operators
     pub fun getStakedNodeIDs(): [String] {
         var stakedNodes: [String] = []
@@ -1004,7 +1004,7 @@ pub contract FlowIDTableStaking {
         }
     }
 
-    // Checks to make sure that the amount of tokens specified 
+    // Checks to make sure that the amount of tokens specified
     // is greater than what is required for that node role
     pub fun isGreaterThanMinimumForRole(numTokens: UFix64, role: UInt8): Bool {
         if role == UInt8(5) {
@@ -1045,7 +1045,7 @@ pub contract FlowIDTableStaking {
         self.DelegatorStoragePath = /storage/flowStakingDelegator
 
         // minimum stakes for each node types
-        self.minimumStakeRequired = {UInt8(1): 250000.0, UInt8(2): 500000.0, UInt8(3): 1250000.0, UInt8(4): 135000.0, UInt8(5): 0.0}
+        self.minimumStakeRequired = {UInt8(1): 250000.0, UInt8(2): 250000.0, UInt8(3): 1250000.0, UInt8(4): 135000.0, UInt8(5): 0.0}
 
         self.totalTokensStakedByNodeType = {UInt8(1): 0.0, UInt8(2): 0.0, UInt8(3): 0.0, UInt8(4): 0.0, UInt8(5): 0.0}
 
