@@ -178,7 +178,7 @@ func TestManyNodesIDTableOnTestnet(t *testing.T) {
 
 			nodeStakingAmounts[i] = tokenAmount
 
-			// nodePaths[i] = cadence.Path{Domain: "storage", Identifier: fmt.Sprintf("node%06d", i)}
+			nodePaths[i] = cadence.Path{Domain: "storage", Identifier: fmt.Sprintf("node%06d", i)}
 
 		}
 
@@ -291,7 +291,7 @@ func TestManyNodesIDTableOnTestnet(t *testing.T) {
 
 		for i := 0; i < numberOfDelegators; i++ {
 
-			// delegatorPaths[i] = cadence.Path{Domain: "storage", Identifier: fmt.Sprintf("del%06d", i)}
+			delegatorPaths[i] = cadence.Path{Domain: "storage", Identifier: fmt.Sprintf("del%06d", i)}
 
 		}
 
@@ -549,7 +549,7 @@ func TestUnstakeAllManyDelegatorsIDTable(t *testing.T) {
 
 		for i := 0; i < unstakeAllNumDelegators; i++ {
 
-			// delegatorPaths[i] = cadence.Path{Domain: "storage", Identifier: fmt.Sprintf("del%06d", i)}
+			delegatorPaths[i] = cadence.Path{Domain: "storage", Identifier: fmt.Sprintf("del%06d", i)}
 
 		}
 
