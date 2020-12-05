@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 
@@ -31,7 +32,7 @@ const (
 	firstNetworkingKey = "networkingKey"
 
 	numberOfNodes      = 1000
-	numberOfDelegators = 20000
+	numberOfDelegators = 10000
 
 	nodeStakeAmount = 1500000
 	nodeMintAmount  = 2000000
@@ -43,8 +44,9 @@ const (
 	testnetFlowTokenAddress = "7e60df042a9c0868"
 
 	testnetAccessAddress = "access.devnet.nodes.onflow.org:9000"
-	testnetPrivateKey    = ""
 )
+
+var testnetPrivateKey = os.Getenv("FLOW_SERVICEACCOUNTPRIVATEKEY")
 
 func TestManyNodesIDTableOnTestnet(t *testing.T) {
 	b, err := emulator.NewNetwork(testnetAccessAddress, testnetPrivateKey)
@@ -92,18 +94,13 @@ func TestManyNodesIDTableOnTestnet(t *testing.T) {
 
 	var idTableAddress flow.Address
 
-	var i uint64
-	i = 0
-	for i < 1000 {
-		results, _ := b.GetEventsByHeight(i, "flow.AccountCreated")
+	txRes, err := b.GetTransactionResult(tx.ID())
+	require.NoError(t, err)
 
-		for _, event := range results {
-			if event.Type == flow.EventAccountCreated {
-				idTableAddress = flow.Address(event.Value.Fields[0].(cadence.Address))
-			}
+	for _, event := range txRes.Events {
+		if event.Type == flow.EventAccountCreated {
+			idTableAddress = flow.Address(event.Value.Fields[0].(cadence.Address))
 		}
-
-		i = i + 1
 	}
 
 	env.IDTableAddress = idTableAddress.Hex()
@@ -441,18 +438,13 @@ func TestUnstakeAllManyDelegatorsIDTable(t *testing.T) {
 
 	var idTableAddress flow.Address
 
-	var i uint64
-	i = 0
-	for i < 1000 {
-		results, _ := b.GetEventsByHeight(i, "flow.AccountCreated")
+	txRes, err := b.GetTransactionResult(tx.ID())
+	require.NoError(t, err)
 
-		for _, event := range results {
-			if event.Type == flow.EventAccountCreated {
-				idTableAddress = flow.Address(event.Value.Fields[0].(cadence.Address))
-			}
+	for _, event := range txRes.Events {
+		if event.Type == flow.EventAccountCreated {
+			idTableAddress = flow.Address(event.Value.Fields[0].(cadence.Address))
 		}
-
-		i = i + 1
 	}
 
 	env.IDTableAddress = idTableAddress.Hex()
