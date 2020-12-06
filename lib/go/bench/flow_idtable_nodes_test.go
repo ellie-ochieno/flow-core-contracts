@@ -66,6 +66,7 @@ func TestManyNodesIDTableOnTestnet(t *testing.T) {
 
 	publicKeys := []cadence.Value{
 		bytesToCadenceArray(IDTableAccountKey.Encode()),
+		bytesToCadenceArray(b.ServiceKey().AccountKey().Encode()),
 	}
 
 	cadencePublicKeys := cadence.NewArray(publicKeys)
@@ -389,6 +390,8 @@ func TestManyNodesIDTableOnTestnet(t *testing.T) {
 		)
 	})
 
+	t.Fatal(env.IDTableAddress)
+
 }
 
 func TestUnstakeAllManyDelegatorsIDTable(t *testing.T) {
@@ -408,9 +411,10 @@ func TestUnstakeAllManyDelegatorsIDTable(t *testing.T) {
 	IDTableAccountKey, _ := accountKeys.NewWithSigner()
 	IDTableCode := contracts.FlowIDTableStaking(testnetFTAddress, testnetFlowTokenAddress)
 
-	publicKeys := make([]cadence.Value, 1)
-
-	publicKeys[0] = bytesToCadenceArray(IDTableAccountKey.Encode())
+	publicKeys := []cadence.Value{
+		bytesToCadenceArray(IDTableAccountKey.Encode()),
+		bytesToCadenceArray(b.ServiceKey().AccountKey().Encode()),
+	}
 
 	cadencePublicKeys := cadence.NewArray(publicKeys)
 	cadenceCode := bytesToCadenceArray(IDTableCode)
@@ -583,4 +587,7 @@ func TestUnstakeAllManyDelegatorsIDTable(t *testing.T) {
 		)
 
 	})
+
+	t.Fatal(env.IDTableAddress)
+
 }
